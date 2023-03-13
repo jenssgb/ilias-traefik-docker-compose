@@ -10,7 +10,7 @@ services:
       - --providers.docker.exposedbydefault=false
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
-      - --certificatesresolvers.myresolver.acme.email=jens.epost@googlemail.com
+      - --certificatesresolvers.myresolver.acme.email=admin@domain.com
       ### Bitte E-Mail Adresse anpassen ###
 
       - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
