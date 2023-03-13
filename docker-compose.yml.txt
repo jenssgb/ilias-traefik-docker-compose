@@ -1,0 +1,81 @@
+version: '3'
+
+services:
+  traefik:
+    image: traefik:v2.5
+    restart: always
+    command:
+      - --api.insecure=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.myresolver.acme.email=jens.epost@googlemail.com
+      ### Bitte E-Mail Adresse anpassen ###
+
+      - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.myresolver.acme.httpchallenge=true
+      - --certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./letsencrypt:/letsencrypt
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`domain.com`)"
+      ### Bitte Domain anpassen ###
+
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.tls.certresolver=myresolver"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
+      - "traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)"
+      - "traefik.http.routers.http-catchall.entrypoints=web"
+      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
+
+  ilias:
+    image: sturai/ilias
+    container_name: ilias-app
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ilias.rule=Host(`domain.com`)"
+      ### Bitte Domain anpassen ###
+
+      - "traefik.http.routers.ilias.entrypoints=websecure"
+      - "traefik.http.routers.ilias.tls.certresolver=myresolver"
+      - "traefik.docker.network=traefik_default"
+      - "traefik.http.services.ilias.loadbalancer.server.port=80"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      - ./html:/var/www/html/data
+      - ./ilias/data:/var/iliasdata/ilias
+    environment:
+      - ILIAS_AUTO_SETUP=1
+      - ILIAS_DB_HOST=db
+      - ILIAS_DB_NAME=ilias
+      - ILIAS_DB_USER=ilias
+      - ILIAS_DB_PASSWORD=test ### Bitte Passwort anpassen ###
+      ### Bitte Passwort anpassen ###
+      - ILIAS_ROOT_PASSWORD=test ### Bitte Passwort anpassen ###
+      - ILIAS_SETUP_PASSWORD=test ### Bitte Passwort anpassen ###
+      - ILIAS_CLIENT_NAME=default
+    depends_on:
+      - db
+
+  db:
+    image: mysql:5.7
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=test ### Bitte Passwort anpassen ###
+      - MYSQL_DATABASE=ilias
+      - MYSQL_USER=ilias
+      - MYSQL_PASSWORD=test ### Bitte Passwort anpassen ###
+    volumes:
+      - ./mysql-data:/var/lib/mysql
+    command:
+      --character-set-server=utf8
+      --collation-server=utf8_general_ci
+      --max-allowed-packet=16M
